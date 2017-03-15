@@ -71,11 +71,12 @@ try:
 except ImportError:
     _FREEZERS["py2app"] = None
 try:
+    from distutils.version import LooseVersion as Version
     import cx_Freeze
-    if cx_Freeze.version.startswith('5'):
-        from esky.bdist_esky import f_cxfreeze5 as f_cxfreeze
-    else:
+    if Version(cx_Freeze.version) < Version('5.0'):
         from esky.bdist_esky import f_cxfreeze
+    else:
+        from esky.bdist_esky import f_cxfreeze5 as f_cxfreeze
     _FREEZERS["cxfreeze"] = f_cxfreeze
     _FREEZERS["cx_Freeze"] = f_cxfreeze
     _FREEZERS["cx_freeze"] = f_cxfreeze

@@ -6,6 +6,7 @@
 
 """
 
+from builtins import range
 
 import os
 import sys
@@ -40,9 +41,11 @@ def freeze(dist):
         excludes.append("pypy")
     #  cx_Freeze doesn't seem to respect __path__ properly; hack it so
     #  that the required distutils modules are always found correctly.
+
     def load_distutils(finder,module):
         module.path = distutils.__path__ + module.path
         finder.IncludeModule("distutils.dist")
+
     cx_Freeze.hooks.load_distutils = load_distutils
     #  Build kwds arguments out of the given freezer opts.
     kwds = {}
@@ -52,6 +55,8 @@ def freeze(dist):
     kwds["excludes"] = excludes
     kwds["targetDir"] = dist.freeze_dir
     kwds["zipIncludePackages"] = ["encodings"]
+    if 'optimize' in kwds:
+        kwds["optimizeFlag"] = kwds.pop('optimize')
     #  Build an Executable object for each script.
     #  To include the esky startup code, we write each to a tempdir.
     executables = []
@@ -59,7 +64,11 @@ def freeze(dist):
         base = None
         if exe.gui_only and sys.platform == "win32":
             base = "Win32GUI"
-        executables.append(cx_Freeze.Executable(exe.script,base=base,targetName=exe.name,icon=exe.icon,**exe._kwds))
+        executables.append(cx_Freeze.Executable(exe.script,
+                                                base=base,
+                                                targetName=exe.name,
+                                                icon=exe.icon,
+                                                **exe._kwds))
     #  Freeze up the executables
     f = cx_Freeze.Freezer(executables,**kwds)
     f.Freeze()

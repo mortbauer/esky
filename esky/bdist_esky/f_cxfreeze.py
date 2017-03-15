@@ -56,7 +56,6 @@ def freeze(dist):
     kwds["includes"] = includes
     kwds["excludes"] = excludes
     kwds["targetDir"] = dist.freeze_dir
-    kwds["zipIncludePackages"] = ['encodings']
     if 'optimize' in kwds:
         kwds["optimizeFlag"] = kwds.get('optimize')
         del kwds['optimize']

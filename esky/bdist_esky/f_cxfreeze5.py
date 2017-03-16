@@ -122,8 +122,9 @@ def freeze(dist):
                 fexe = os.path.join(dist.freeze_dir,exe.name)
                 winres.copy_safe_resources(fexe,bsexe)
     else:
+        if sys.platform == "win32":
+            code_source.append(_CUSTOM_WIN32_CHAINLOADER)
         code_source.append(dist.get_bootstrap_code())
-        code_source.append("bootstrap()")
         code_source = "\n".join(code_source)
         
         eskybscode = compile_to_bytecode(code_source, "esky_bootstrap.py")
@@ -184,6 +185,56 @@ if sys.version_info[0] < 3:
     EXEC_STATEMENT = "exec code in globals()"
 else:
     EXEC_STATEMENT = "exec(code,globals())"
+
+_CUSTOM_WIN32_CHAINLOADER = """
+
+_orig_chainload = _chainload
+def _chainload(target_dir):
+  import os
+  mydir = dirname(sys.executable)
+  pydll = "python%%s%%s.dll" %% sys.version_info[:2]
+  if not exists(pathjoin(target_dir,pydll)):
+      _orig_chainload(target_dir)
+  else:
+      sys.bootstrap_executable = sys.executable
+      sys.executable = pathjoin(target_dir,basename(sys.executable))
+      verify(sys.executable)
+      sys.prefix = sys.prefix.replace(mydir,target_dir)
+      sys.argv[0] = sys.executable
+      for i in range(len(sys.path)):
+          sys.path[i] = sys.path[i].replace(mydir,target_dir)
+      #  If we're in the bootstrap dir, try to chdir into the version dir.
+      #  This is sometimes necessary for loading of DLLs by relative path.
+      curdir = getcwd()
+      if curdir == mydir:
+          nt.chdir(target_dir)
+      import zipimport
+      name = '{0}__main__'.format(basename(sys.executable).split('.')[0])
+      for init_path in sys.path:
+          verify(init_path)
+          try:
+              importer = zipimport.zipimporter(init_path)
+              code = importer.get_code(name)
+          except ImportError:
+              pass
+          else:
+              thispath = dirname(init_path)
+              os.environ['TCL_LIBRARY'] = pathjoin(thispath,'tcl')
+              os.environ['TK_LIBRARY'] = pathjoin(thispath,'tk')
+              try:
+                  %s
+              except zipimport.ZipImportError:
+                  e = sys.exc_info()[1]
+                  #  If it can't find the __main__{sys.executable} script,
+                  #  the user might be running from a backup exe file.
+                  #  Fall back to original chainloader to attempt workaround.
+                  if e.message.endswith("__main__'"):
+                      _orig_chainload(target_dir)
+                  raise
+              sys.exit(0)
+      else:
+          _orig_chainload(target_dir)
+""" %EXEC_STATEMENT
 
 
 #  On Windows, execv is flaky and expensive.  Since the pypy-compiled bootstrap

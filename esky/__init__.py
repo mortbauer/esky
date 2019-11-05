@@ -22,7 +22,7 @@ from __future__ import absolute_import
 #from future import standard_library
 #standard_library.install_aliases()
 from builtins import next, object
-# from past.builtins import basestring
+from past.builtins import basestring
 
 __ver_major__ = 0
 __ver_minor__ = 9
